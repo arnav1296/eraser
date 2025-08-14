@@ -9,12 +9,19 @@ import {
   MousePointerClick,
   Save,
 } from "lucide-react";
+import PenOptions from "./PenOptions";
 
-const DEFAULT_STROKE_COLOR = 'white';
+const DEFAULT_STROKE_COLOR = "white";
 const DEFAULT_STROKE_WIDTH = 5;
 const ERASER_STROKE_WIDTH = 20;
 
-function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent, boardId, onClearAllStrokes }) {
+function KonvaDrawingBoard({
+  initialStrokes,
+  onSaveStroke,
+  onSaveAllBoardContent,
+  boardId,
+  onClearAllStrokes,
+}) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const [tool, setTool] = useState("pen");
@@ -23,7 +30,9 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [stageScale, setStageScale] = useState(1);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-
+  const [toolOptions, setToolOptions] = useState(false);
+  const [penColor, setPenColor] = useState("white");
+  const [penSize, setPenSize] = useState(5);
   // --- Resizing the Stage when container size changes ---
   const checkSize = useCallback(() => {
     if (containerRef.current) {
@@ -36,17 +45,17 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
 
   useEffect(() => {
     checkSize();
-    window.addEventListener('resize', checkSize);
-    return () => window.removeEventListener('resize', checkSize);
+    window.addEventListener("resize", checkSize);
+    return () => window.removeEventListener("resize", checkSize);
   }, [checkSize]);
 
   // --- Load initial strokes ---
   useEffect(() => {
     const loadedLines = (initialStrokes || [])
-      .filter(s => s.points && s.points.length > 0)
-      .map(s => ({
+      .filter((s) => s.points && s.points.length > 0)
+      .map((s) => ({
         id: s.id,
-        points: typeof s.points === 'string' ? JSON.parse(s.points) : s.points,
+        points: typeof s.points === "string" ? JSON.parse(s.points) : s.points,
         tool: s.tool || "pen",
         color: s.color || DEFAULT_STROKE_COLOR,
         strokeWidth: s.strokeWidth || DEFAULT_STROKE_WIDTH,
@@ -55,46 +64,55 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
   }, [initialStrokes]);
 
   // --- Drawing Event Handlers ---
-  const handleMouseDown = useCallback((e) => {
-    if (tool === "pan" || tool === "pointer") return;
-    setIsDrawing(true);
-    const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
+  const handleMouseDown = useCallback(
+    (e) => {
+      if (tool === "pan" || tool === "pointer") return;
+      setIsDrawing(true);
+      const stage = e.target.getStage();
+      const pos = stage.getPointerPosition();
 
-    //convert screen coordinates into stage coordinates
-    const transform = stage.getAbsoluteTransform().copy();
-    transform.invert();
-    const relativePos = transform.point(pos);
-    setLines((prevLines) => [
-      ...prevLines,
-      {
-        tool,
-        color: tool === "eraser" ? "black" : DEFAULT_STROKE_COLOR,
-        strokeWidth: tool === "eraser" ? ERASER_STROKE_WIDTH : DEFAULT_STROKE_WIDTH,
-        points: [relativePos.x, relativePos.y],
-        id: Date.now() + Math.random(),
-      },
-    ]);
-  }, [tool]);
+      //convert screen coordinates into stage coordinates
+      const transform = stage.getAbsoluteTransform().copy();
+      transform.invert();
+      const relativePos = transform.point(pos);
+      setLines((prevLines) => [
+        ...prevLines,
+        {
+          tool,
+          color: tool === "eraser" ? "black" : penColor,
+          strokeWidth: tool === "eraser" ? ERASER_STROKE_WIDTH : penSize,
+          points: [relativePos.x, relativePos.y],
+          id: Date.now() + Math.random(),
+        },
+      ]);
+    },
+    [tool]
+  );
 
-  const handleMouseMove = useCallback((e) => {
-    if (!isDrawing || tool === "pan" || tool === "pointer") return;
-    const stage = stageRef.current;
-    const point = stage.getPointerPosition();
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!isDrawing || tool === "pan" || tool === "pointer") return;
+      const stage = stageRef.current;
+      const point = stage.getPointerPosition();
 
-    //convert screen coordinates into stage coordinates
-    const transform = stage.getAbsoluteTransform().copy();
-    transform.invert();
-    const relativePos = transform.point(point);
+      //convert screen coordinates into stage coordinates
+      const transform = stage.getAbsoluteTransform().copy();
+      transform.invert();
+      const relativePos = transform.point(point);
 
-    setLines((prevLines) => {
-      const lastLine = { ...prevLines[prevLines.length - 1] };
-      lastLine.points = lastLine.points.concat([relativePos.x, relativePos.y]);
-      const newLines = [...prevLines];
-      newLines[newLines.length - 1] = lastLine;
-      return newLines;
-    });
-  }, [isDrawing, tool]);
+      setLines((prevLines) => {
+        const lastLine = { ...prevLines[prevLines.length - 1] };
+        lastLine.points = lastLine.points.concat([
+          relativePos.x,
+          relativePos.y,
+        ]);
+        const newLines = [...prevLines];
+        newLines[newLines.length - 1] = lastLine;
+        return newLines;
+      });
+    },
+    [isDrawing, tool]
+  );
 
   const handleMouseUp = useCallback(async () => {
     setIsDrawing(false);
@@ -114,17 +132,21 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
 
   // --- Explicit Save Handler ---
   const handleExplicitSave = useCallback(() => {
-      if (onSaveAllBoardContent) {
-          onSaveAllBoardContent(boardId, lines);
-          alert("All changes saved!");
-      } else {
-          alert("Save feature not fully connected. Check console.");
-      }
+    if (onSaveAllBoardContent) {
+      onSaveAllBoardContent(boardId, lines);
+      alert("All changes saved!");
+    } else {
+      alert("Save feature not fully connected. Check console.");
+    }
   }, [onSaveAllBoardContent, boardId, lines]);
 
   // --- Clear Canvas Function ---
   const clearCanvas = useCallback(async () => {
-    if (window.confirm("Are you sure you want to clear the entire canvas? This action cannot be undone.")) {
+    if (
+      window.confirm(
+        "Are you sure you want to clear the entire canvas? This action cannot be undone."
+      )
+    ) {
       setLines([]); // Clear locally first for immediate feedback
       await onClearAllStrokes(boardId);
       alert("Canvas cleared permanently!");
@@ -132,7 +154,8 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
   }, [boardId, onClearAllStrokes]);
 
   // --- View Control Handlers (MOVED HERE) ---
-  const handleWheel = useCallback((e) => { // <--- MOVED AND WRAPPED IN useCallback
+  const handleWheel = useCallback((e) => {
+    // <--- MOVED AND WRAPPED IN useCallback
     e.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
@@ -157,31 +180,84 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
     });
   }, []); // No external dependencies, stageRef is ref
 
-  const handleDragEnd = useCallback((e) => { // <--- MOVED AND WRAPPED IN useCallback
+  const handleDragEnd = useCallback((e) => {
+    // <--- MOVED AND WRAPPED IN useCallback
     setStagePos({
       x: e.target.x(),
       y: e.target.y(),
     });
   }, []);
 
-  const resetView = useCallback(() => { // <--- MOVED AND WRAPPED IN useCallback
+  const resetView = useCallback(() => {
+    // <--- MOVED AND WRAPPED IN useCallback
     setStagePos({ x: 0, y: 0 });
     setStageScale(1);
   }, []);
 
+  const handleToolClick = (toolName) => {
+    if (tool !== toolName) {
+      setTool(toolName);
+      setToolOptions(false);
+    } else if (tool === toolName) {
+      setToolOptions(!toolOptions);
+    }
+  };
 
   return (
     <div className="w-full h-full bg-[#121417] flex flex-row relative">
       {/* Toolbar */}
       <div className="absolute left-4 top-1/2 transform -translate-y-1/2 rounded-lg bg-white/10 backdrop-blur-md border border-white/20 p-4 flex flex-col items-center justify-between z-10">
         <div className="flex flex-col items-center space-y-10">
-          <button onClick={() => setTool("pointer")} className={`p-2 rounded-lg text-white transition-colors ${tool === "pointer" ? "bg-blue-100/15" : "hover:bg-blue-100/15"}`} title="Pointer Tool"> <MousePointerClick size={25} /> </button>
-          <button onClick={() => setTool("pen")} className={`p-2 rounded-lg text-white transition-colors ${tool === "pen" ? "bg-blue-100/15" : "hover:bg-blue-100/15"}`} title="Pen Tool"> <Pencil size={25} /> </button>
-          <button onClick={() => setTool("eraser")} className={`p-2 rounded-lg text-white transition-colors ${tool === "eraser" ? "bg-blue-100/15" : "hover:bg-blue-100/15"}`} title="Eraser Tool"> <Eraser size={25} /> </button>
-          <button onClick={() => setTool("pan")} className={`p-2 rounded-lg text-white transition-colors ${tool === "pan" ? "bg-blue-100/15" : "hover:bg-blue-100/15"}`} title="Pan Tool"> <Move size={25} /> </button>
+          <button
+            onClick={() => handleToolClick("pointer")}
+            className={`p-2 rounded-lg text-white transition-colors ${
+              tool === "pointer" ? "bg-blue-100/15" : "hover:bg-blue-100/15"
+            }`}
+            title="Pointer Tool"
+          >
+            {" "}
+            <MousePointerClick size={25} />{" "}
+          </button>
+          <button
+            onClick={() => handleToolClick("pen")}
+            className={`p-2 rounded-lg text-white transition-colors ${
+              tool === "pen" ? "bg-blue-100/15" : "hover:bg-blue-100/15"
+            }`}
+            title="Pen Tool"
+          >
+            {" "}
+            <Pencil size={25} />{" "}
+          </button>
+          <button
+            onClick={() => handleToolClick("eraser")}
+            className={`p-2 rounded-lg text-white transition-colors ${
+              tool === "eraser" ? "bg-blue-100/15" : "hover:bg-blue-100/15"
+            }`}
+            title="Eraser Tool"
+          >
+            {" "}
+            <Eraser size={25} />{" "}
+          </button>
+          <button
+            onClick={() => handleToolClick("pan")}
+            className={`p-2 rounded-lg text-white transition-colors ${
+              tool === "pan" ? "bg-blue-100/15" : "hover:bg-blue-100/15"
+            }`}
+            title="Pan Tool"
+          >
+            {" "}
+            <Move size={25} />{" "}
+          </button>
         </div>
         <div className="p-5"></div>
-        <button onClick={resetView} className="p-2 rounded-lg text-white hover:bg-blue-100/15 transition-colors" title="Reset View"> <RotateCcw size={25} /> </button>
+        <button
+          onClick={resetView}
+          className="p-2 rounded-lg text-white hover:bg-blue-100/15 transition-colors"
+          title="Reset View"
+        >
+          {" "}
+          <RotateCcw size={25} />{" "}
+        </button>
         <div className="p-4"> </div>
         <button
           onClick={handleExplicitSave}
@@ -191,8 +267,25 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
           <Save size={25} />
         </button>
         <div className="p-4"> </div>
-        <button onClick={clearCanvas} className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"> Clear </button>
+        <button
+          onClick={clearCanvas}
+          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+        >
+          {" "}
+          Clear{" "}
+        </button>
       </div>
+
+      {toolOptions && tool == "pen" && (
+        <div className="absolute left-20 top-1/2 transform -translate-y-1/2 z-20">
+          <PenOptions
+            currentColor={penColor}
+            currentSize={penSize}
+            onColorChange={setPenColor}
+            onSizeChange={setPenSize}
+          />
+        </div>
+      )}
 
       {/* Canvas Area */}
       <div ref={containerRef} className="flex-1 overflow-hidden relative">
@@ -213,8 +306,10 @@ function KonvaDrawingBoard({ initialStrokes, onSaveStroke, onSaveAllBoardContent
         >
           <Layer>
             <Rect // <--- This Rect is crucial for the background color
-              x={0} y={0}
-              width={containerSize.width} height={containerSize.height}
+              x={0}
+              y={0}
+              width={containerSize.width}
+              height={containerSize.height}
               fill="#121417"
             />
             {lines.map((line) => (

@@ -158,7 +158,7 @@ const HomePage = () => {
     <div className="relative flex size-full min-h-screen flex-col bg-slate-900 dark group/design-root overflow-x-hidden font-sans">
       <div className="layout-container flex h-full grow flex-col">
         {/* Header */}
-        <Header user={user} setUser={setUser} setBoards={setBoards}/>
+        <Header user={user} setUser={setUser} setBoards={setBoards} />
 
         {/* Main Content */}
         <div className="px-4 md:px-40 flex flex-1 justify-center py-5">
